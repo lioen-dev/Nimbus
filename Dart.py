@@ -3,18 +3,22 @@ from tkinter import filedialog
 import hashlib
 import boto3
 import os
+from tqdm import tqdm
 
-#color code variables
-CITALIC = '\33[3m'
-CBLINK = '\33[5m'
-CGREEN  = '\33[32m'
-CRED   = '\33[31m'
+# Color codes
+CBLINK = '\033[5m'
+CRED = '\033[91m'
+CGREEN = '\033[92m'
+CITALICS = '\033[3m'
+CUNDERLINE = '\033[4m'
 CEND = '\033[0m'
 
+print('\n')
+print(CITALICS + CUNDERLINE + CGREEN + "Welcome to Dart!" + CEND)
 
 # Initialize S3 client
-s3 = boto3.client('s3', aws_access_key_id='lmao',
-                         aws_secret_access_key='heh you thought')
+s3 = boto3.client('s3', aws_access_key_id='heh you thought',
+                         aws_secret_access_key='you aint gettin my keys tho')
 
 def upload_file():
     # Create a unique code
@@ -27,34 +31,49 @@ def upload_file():
 
     # Upload file to S3 with the original filename and filetype. Use the unique code as the key
     file_name = os.path.basename(file_path)
-    s3.upload_file(file_path, 'fost', code, ExtraArgs={'Metadata': {'original_filename': file_name}})
+    file_size = os.path.getsize(file_path)
+    progress_bar = tqdm(total=file_size, unit='B', unit_scale=True, desc=' Uploading', leave=False)
+
+    def progress_callback(bytes_uploaded):
+        progress_bar.update(bytes_uploaded - progress_bar.n)
+
+    s3.upload_file(file_path, 'fost', code, ExtraArgs={'Metadata': {'original_filename': file_name}}, Callback=progress_callback)
+    progress_bar.close()
     print('\n')
-    print(CBLINK + 'Please wait...' + CEND)
-    print(CITALIC + CGREEN + f"File uploaded successfully! Your unique code is: {code}" + CEND)
+    print(CGREEN + CITALICS + f"File uploaded successfully! Your unique code is: {code}." + CEND)
+
 
 def download_file():
     # Get the unique code from the user
-    code = input("Enter the unique code: ")
-    print(CBLINK + 'Please wait...' + CEND)
+    code = input(" Enter the unique code: ")
+    print(CBLINK + ' Please wait...' + CEND)
 
-    # Download the file from S3 with the original filename and filetype
+    # Download the file from S3 with 
+    # the original filename and filetype
     try:
         response = s3.head_object(Bucket='fost', Key=code)
         file_name = response['Metadata']['original_filename']
-        s3.download_file('fost', code, file_name)
-        print(CGREEN + CITALIC + f"File downloaded successfully! File saved as: {file_name}" + CEND)
+        file_size = int(response['ContentLength'])
+        progress_bar = tqdm(total=file_size, unit='B', unit_scale=True, desc=' Downloading', leave=False)
+
+        def progress_callback(bytes_downloaded):
+            progress_bar.update(bytes_downloaded - progress_bar.n)
+
+        s3.download_file('fost', code, file_name, Callback=progress_callback)
+        progress_bar.close()
+        print(CGREEN + CITALICS + f"File downloaded successfully! File saved as: {file_name}" + CEND)
 
     except Exception as e:
-        print(f"Error downloading file: {e}")
+        print(CRED + CUNDERLINE + f"Error downloading file: {e}" + CEND)
 
 def main():
     while True:
         print('\n')
-        print("1. Upload file")
-        print("2. Download file")
-        print("3. Exit")
+        print(" 1. Upload file")
+        print(" 2. Download file")
+        print(" 3. Exit")
         print('\n')
-        choice = input("Enter your choice: ")
+        choice = input(" Enter your choice: ")
 
         if choice == "1":
             upload_file()
@@ -65,7 +84,7 @@ def main():
         else:
             os.system('cls')
             print('\n')
-            print("Invalid choice. Please try again.")
+            print(CRED + CUNDERLINE + "Invalid choice. Please try again." + CEND)
 
 if __name__ == "__main__":
     main()
