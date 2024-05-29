@@ -4,6 +4,15 @@ import hashlib
 import boto3
 import os
 from tqdm import tqdm
+import time
+
+# Network check
+try:
+    urllib.request.urlopen('http://www.google.com')
+except urllib.error.URLError:
+    print("You need internet to use the application.")
+    time.sleep(1)
+    sys.exit(1)
 
 # Color codes
 CBLINK = '\033[5m'
