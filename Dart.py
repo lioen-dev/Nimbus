@@ -26,8 +26,8 @@ print('\n')
 print(CITALICS + CUNDERLINE + CGREEN + "Welcome to Dart!" + CEND)
 
 # Initialize S3 client
-s3 = boto3.client('s3', aws_access_key_id='heh you thought',
-                         aws_secret_access_key='you aint gettin my keys tho')
+s3 = boto3.client('s3', aws_access_key_id='',
+                         aws_secret_access_key='')
 
 def upload_file():
     # Create a unique code
