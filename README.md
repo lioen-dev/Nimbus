@@ -4,7 +4,5 @@ Dart is a simple file sharing platform built off of the boco3 library and writte
  - Click [Here](https://github.com/lioen-dev/Dart/releases/latest)
  - Download the exe file
  - Profit
-# Prerequisites
- - [Python](https://www.python.org/)   
 # Contact
 If you have any questions or concerns feel free to contact me at barker.rowan@sugarsalem.com :)
