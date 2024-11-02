@@ -15,7 +15,7 @@ CUNDERLINE = '\033[4m'
 CEND = '\033[0m'
 
 print('\n')
-print(CITALICS + CUNDERLINE + CGREEN + "Welcome to Dart!" + CEND)
+print(CITALICS + CUNDERLINE + CGREEN + "Welcome to Nimbus!" + CEND)
 
 # Initialize S3 client
 s3 = boto3.client('s3', aws_access_key_id='',
