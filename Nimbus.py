@@ -1,5 +1,4 @@
-import tkinter as tk
-from tkinter import filedialog
+import easygui
 import hashlib
 import boto3
 import os
@@ -32,13 +31,14 @@ def upload_file():
     os.system("cls")
     print("Please select your file / zip folder.")
     time.sleep(1)
-    # Create a unique code
+# Create a unique code
     code = hashlib.sha256(os.urandom(1024)).hexdigest()[:6]
 
-    # Open file dialog to select file
-    root = tk.Tk()
-    root.withdraw()
-    file_path = filedialog.askopenfilename()
+    # Use EasyGUI to open file dialog and select file
+    file_path = easygui.fileopenbox(title="Select a file to upload")
+    if not file_path:
+        print(CRED + CITALICS + "No file selected. Upload cancelled." + CEND)
+        return
 
     # Upload file to S3 with the original filename and filetype. Use the unique code as the key
     file_name = os.path.basename(file_path)
