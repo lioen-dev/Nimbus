@@ -3,8 +3,9 @@ from tkinter import filedialog
 import hashlib
 import boto3
 import os
-from tqdm import tqdm
 import time
+from tqdm import tqdm
+import keyboard
 
 # Color codes
 CBLINK = '\033[5m'
@@ -15,13 +16,22 @@ CUNDERLINE = '\033[4m'
 CEND = '\033[0m'
 
 print('\n')
-print(CITALICS + CUNDERLINE + CGREEN + "Welcome to Nimbus!" + CEND)
+
+print(CITALICS + CGREEN + "███╗   ██╗██╗███╗   ███╗██████╗ ██╗   ██╗███████╗" + CEND)
+print(CITALICS + CGREEN + "████╗  ██║██║████╗ ████║██╔══██╗██║   ██║██╔════╝" + CEND)
+print(CITALICS + CGREEN + "██╔██╗ ██║██║██╔████╔██║██████╔╝██║   ██║███████╗" + CEND)
+print(CITALICS + CGREEN + "██║╚██╗██║██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║" + CEND)
+print(CITALICS + CGREEN + "██║ ╚████║██║██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║" + CEND)
+print(CITALICS + CGREEN + "╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝" + CEND)
 
 # Initialize S3 client
 s3 = boto3.client('s3', aws_access_key_id='',
                          aws_secret_access_key='')
 
 def upload_file():
+    os.system("cls")
+    print("Please select your file / zip folder.")
+    time.sleep(1)
     # Create a unique code
     code = hashlib.sha256(os.urandom(1024)).hexdigest()[:6]
 
@@ -42,7 +52,6 @@ def upload_file():
     progress_bar.close()
     print('\n')
     print(CGREEN + CITALICS + f"File uploaded successfully! Your unique code is: {code}." + CEND)
-
 
 def download_file():
     # Get the unique code from the user
@@ -70,11 +79,12 @@ def download_file():
 def main():
     while True:
         print('\n')
-        print(" 1. Upload file")
-        print(" 2. Download file")
-        print(" 3. Exit")
+        print(" [1.] Upload file")
+        print(" [2.] Download file")
+        print(" [3.] Exit")
         print('\n')
-        choice = input(" Enter your choice: ")
+        print(" Enter your choice: ")
+        choice = keyboard.read_event().name
 
         if choice == "1":
             upload_file()
