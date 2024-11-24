@@ -99,8 +99,9 @@ def download():
             # Download the file from S3 with the progress callback
             s3.download_file(bucket, code, file_name, Callback=progress_callback)
         
+        cls()
         print(CGREEN + CITALICS + f"File downloaded successfully! File saved as: {file_name}" + CEND)
-        main
+        main()
 
     except Exception as e:
         print(CRED + f"Error downloading file: {e}" + CEND)
@@ -159,7 +160,7 @@ def changebucket():
         config["Hosting Info"] = {"bucket": bucketname}
     writeconfig()
 
-    host()
+    settingsmain()
 
 def changepubkey():
     cls()
@@ -232,6 +233,9 @@ def settingsmain():
         else:
             config["Hosting Info"] = {"privkey": ""}
         writeconfig()
+        cls()
+        print(CGREEN + "Reset sucessfully!" + CEND)
+        main()
 
     elif key == '5':
         main()
@@ -279,7 +283,7 @@ def alldone():
         main()
     
     if key == '2':
-        host()
+        settingsmain()
 
     key = input()
 
