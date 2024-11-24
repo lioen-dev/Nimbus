@@ -30,6 +30,8 @@ def writeconfig():
     with open(configfile, "w") as configfile:
         config.write(configfile)
 
+# Pages
+
 def upload():
     readconfig()
     bucket = config["Hosting Info"]["bucket"]
@@ -40,35 +42,54 @@ def upload():
     
     cls()
     n()
-    print("Please select your file / zip folder.")
+    print("    Please select your file / zip folder.")
     time.sleep(0.5)
 
-    code = hashlib.sha256(os.urandom(1024)).hexdigest()[:6]
+    code = hashlib.sha256(os.urandom(1024)).hexdigest()[:7]
 
     # Open file dialog to select file
-    root = tk.Tk()
-    root.withdraw()
-    file_path = filedialog.askopenfilename()
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        file_path = filedialog.askopenfilename()
 
-    # Upload file to S3 with the original filename and filetype. Use the unique code as the key
-    file_name = os.path.basename(file_path)
+        if file_path == "":
+            print("    No file selected. Returning to main menu.")
+            time.sleep(1)
+            cls()
+            main()
 
-    # Get the file size to track progress
-    file_size = os.path.getsize(file_path)
+        # Upload file to S3 with the original filename and filetype. Use the unique code as the key
+        file_name = os.path.basename(file_path)
 
-    # Create a tqdm progress bar
-    with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"Uploading {file_name}") as pbar:
-        # Define a progress callback function to update the progress bar
-        def progress_callback(bytes_transferred):
-            pbar.update(bytes_transferred)
+        # Get the file size to track progress
+        file_size = os.path.getsize(file_path)
 
-        # Upload file to S3 with the progress callback
-        s3.upload_file(file_path, bucket, code, ExtraArgs={'Metadata': {'original_filename': file_name}}, Callback=progress_callback)
-    
-    cls()
-    n()
-    print(CGREEN + CITALICS + f"File uploaded to bucket {bucket}! Your code is {code}!" + CEND)
-    main()
+        # Create a tqdm progress bar
+        with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"Uploading {file_name}") as pbar:
+            # Define a progress callback function to update the progress bar
+            def progress_callback(bytes_transferred):
+                pbar.update(bytes_transferred)
+
+            # Upload file to S3 with the progress callback
+            s3.upload_file(file_path, bucket, code, ExtraArgs={'Metadata': {'original_filename': file_name}}, Callback=progress_callback)
+        
+        cls()
+        n()
+        readconfig()
+        if config["Hosting Info"]["bucket"] == "fost":
+            print(CGREEN + CITALICS + f"    File uploaded to default bucket! Your code is {code}!" + CEND)
+        else:
+            print(CGREEN + CITALICS + f"    File uploaded to bucket {bucket}! Your code is {code}!" + CEND)
+
+
+
+        main()
+
+    except Exception as e:
+        cls()
+        print(CRED + f"    Error uploading file: {e}" + CEND)
+        main()
 
 def download():
     readconfig()
@@ -80,7 +101,13 @@ def download():
     
     n()
     # Get the unique code from the user
-    code = input("Enter the unique code: ")
+    code = input("    Enter the unique code: ")
+
+    if code == "":
+        print("    No code entered. Returning to main menu.")
+        time.sleep(1)
+        cls()
+        main()
 
     try:
         # Get the file's metadata to retrieve the original filename
@@ -100,20 +127,17 @@ def download():
             s3.download_file(bucket, code, file_name, Callback=progress_callback)
         
         cls()
-        print(CGREEN + CITALICS + f"File downloaded successfully! File saved as: {file_name}" + CEND)
+        print(CGREEN + CITALICS + f"    File downloaded successfully! File saved as: {file_name}" + CEND)
         main()
 
     except Exception as e:
-        print(CRED + f"Error downloading file: {e}" + CEND)
+        print(CRED + f"    Error downloading file: {e}" + CEND)
         main()
 
-
-# Pages
 def main():
-    n()
     system(""); faded = ""
     red = 40
-    for line in "███╗   ██╗██╗███╗   ███╗██████╗ ██╗   ██╗███████╗\n████╗  ██║██║████╗ ████║██╔══██╗██║   ██║██╔════╝\n██╔██╗ ██║██║██╔████╔██║██████╔╝██║   ██║███████╗\n██║╚██╗██║██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║\n██║ ╚████║██║██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║\n╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝".splitlines():
+    for line in "    ────────────────────⋆⋅☆⋅⋆────────────────────────\n                                                     \n    ███╗   ██╗██╗███╗   ███╗██████╗ ██╗   ██╗███████╗\n    ████╗  ██║██║████╗ ████║██╔══██╗██║   ██║██╔════╝\n    ██╔██╗ ██║██║██╔████╔██║██████╔╝██║   ██║███████╗\n    ██║╚██╗██║██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║\n    ██║ ╚████║██║██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║\n    ╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝\n    ────────────────────⋆⋅☆⋅⋆────────────────────────\n".splitlines():
         faded += (f"\033[38;2;{red};0;220m{line}\033[0m\n")
         if not red == 255:
             red += 15
@@ -121,15 +145,15 @@ def main():
                 red = 255
     print(faded)
 
-    print("by lioen (barker.rowan@sugarsalem.com)")
+    print("    by lioen (barker.rowan@sugarsalem.com)")
     n()
-    print("[1.] Upload a File")
-    print("[2.] Download a File")
-    print("[3.] Settings")
-    print("[4.] Exit")
+    print("    [1.] Upload a File")
+    print("    [2.] Download a File")
+    print("    [3.] Settings")
+    print("    [4.] Exit")
     n()
 
-    key = input()
+    key = input("    ")
 
     if key == '1':
         upload()
@@ -138,6 +162,7 @@ def main():
         download()
 
     elif key == '3':
+        cls()
         settingsmain()
 
     elif key == '4':
@@ -159,6 +184,8 @@ def changebucket():
     else:
         config["Hosting Info"] = {"bucket": bucketname}
     writeconfig()
+    cls()
+    print(CGREEN + f"Saved bucket as {bucketname}!" + CEND)
 
     settingsmain()
 
@@ -174,6 +201,10 @@ def changepubkey():
     else:
         config["Hosting Info"] = {"pubkey": publicapikey}
     writeconfig()
+    cls()
+    print(CGREEN + f"Saved public key as {publicapikey}!" + CEND)
+
+    settingsmain()
 
 def changeprivkey():
     cls()
@@ -187,20 +218,23 @@ def changeprivkey():
     else:
         config["Hosting Info"] = {"privkey": privateapikey}
     writeconfig()
+    cls()
+    print(CGREEN + f"Saved private key as {privateapikey}!" + CEND)
+
+    settingsmain()
 
 def settingsmain():
-    cls()
     n()
-    print("Select what you'd like to change.")
+    print("    Select what you'd like to change.")
     n()
-    print("[1.] Bucket Name")
-    print("[2.] Public Key")
-    print("[3.] Private Key")
-    print("[4.] Reset to Defaults")
-    print("[5.] Back")
+    print("    [1.] Bucket Name")
+    print("    [2.] Public Key")
+    print("    [3.] Private Key")
+    print("    [4.] Reset to Defaults")
+    print("    [5.] Back")
     n()
 
-    key = input()
+    key = input("    ")
 
     if key == '1':
         changebucket()
@@ -214,10 +248,10 @@ def settingsmain():
     elif key == '4':
         readconfig()
         if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "bucket", "fost")
+            config.set("Hosting Info", "bucket", "")
 
         else:
-            config["Hosting Info"] = {"bucket": "fost"}
+            config["Hosting Info"] = {"bucket": ""}
         writeconfig()
         readconfig()
         if config.has_section("Hosting Info"):
@@ -235,9 +269,10 @@ def settingsmain():
         writeconfig()
         cls()
         print(CGREEN + "Reset sucessfully!" + CEND)
-        main()
+        settingsmain()
 
     elif key == '5':
+        cls()
         main()
 
     else:
@@ -259,10 +294,10 @@ def alldone():
 
         readconfig()
         if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "bucket", "fost")
+            config.set("Hosting Info", "bucket", "")
 
         else:
-            config["Hosting Info"] = {"bucket": "fost"}
+            config["Hosting Info"] = {"bucket": ""}
         writeconfig()
         readconfig()
         if config.has_section("Hosting Info"):
@@ -290,7 +325,7 @@ def alldone():
 def hostinglocation():
     cls()
     n()
-    print("Would you like to use the default file hosting location? (Recommended for beginners, but less secure due to API keys being public knowledge.)")
+    print("Would you like to use the default file hosting location? (Recommended for beginners.)")
     n()
     print("[1.] Yes, I will use the defualt location.")
     print("[2.] No, I will use a custom location.")
@@ -380,6 +415,7 @@ configfile = "config.ini"
 if os.path.exists(configfile):
     cls()
     main()
+
 else:
     open(configfile, "w").close()
     cls()
