@@ -3,8 +3,8 @@ from tkinter import filedialog
 import hashlib
 import boto3
 import os
+from os import system
 from tqdm import tqdm
-import fade
 import time
 import configparser
 
@@ -99,12 +99,10 @@ def download():
             # Download the file from S3 with the progress callback
             s3.download_file(bucket, code, file_name, Callback=progress_callback)
         
-        cls()
         print(CGREEN + CITALICS + f"File downloaded successfully! File saved as: {file_name}" + CEND)
-        main()
+        main
 
     except Exception as e:
-        cls()
         print(CRED + f"Error downloading file: {e}" + CEND)
         main()
 
@@ -112,8 +110,16 @@ def download():
 # Pages
 def main():
     n()
-    title = fade.purplepink("███╗   ██╗██╗███╗   ███╗██████╗ ██╗   ██╗███████╗" + "\n" + "████╗  ██║██║████╗ ████║██╔══██╗██║   ██║██╔════╝" + "\n" + "██╔██╗ ██║██║██╔████╔██║██████╔╝██║   ██║███████╗" + "\n" + "██║╚██╗██║██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║" + "\n" + "██║ ╚████║██║██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║" + "\n" + "╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝")
-    print(title)
+    system(""); faded = ""
+    red = 40
+    for line in "███╗   ██╗██╗███╗   ███╗██████╗ ██╗   ██╗███████╗\n████╗  ██║██║████╗ ████║██╔══██╗██║   ██║██╔════╝\n██╔██╗ ██║██║██╔████╔██║██████╔╝██║   ██║███████╗\n██║╚██╗██║██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║\n██║ ╚████║██║██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║\n╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝".splitlines():
+        faded += (f"\033[38;2;{red};0;220m{line}\033[0m\n")
+        if not red == 255:
+            red += 15
+            if red > 255:
+                red = 255
+    print(faded)
+
     print("by lioen (barker.rowan@sugarsalem.com)")
     n()
     print("[1.] Upload a File")
@@ -139,10 +145,6 @@ def main():
         time.sleep(1)
         cls()
         exit()
-
-def customization():
-    cls()
-    main()
 
 def changebucket():
     cls()
@@ -185,7 +187,7 @@ def changeprivkey():
         config["Hosting Info"] = {"privkey": privateapikey}
     writeconfig()
 
-def host():
+def settingsmain():
     cls()
     n()
     print("Select what you'd like to change.")
@@ -193,7 +195,8 @@ def host():
     print("[1.] Bucket Name")
     print("[2.] Public Key")
     print("[3.] Private Key")
-    print("[4.] Back")
+    print("[4.] Reset to Defaults")
+    print("[5.] Back")
     n()
 
     key = input()
@@ -208,10 +211,33 @@ def host():
         changeprivkey()
 
     elif key == '4':
-        settingsmain()
+        readconfig()
+        if config.has_section("Hosting Info"):
+            config.set("Hosting Info", "bucket", "fost")
+
+        else:
+            config["Hosting Info"] = {"bucket": "fost"}
+        writeconfig()
+        readconfig()
+        if config.has_section("Hosting Info"):
+            config.set("Hosting Info", "pubkey", "")
+
+        else:
+            config["Hosting Info"] = {"pubkey": ""}
+        writeconfig()
+        readconfig()
+        if config.has_section("Hosting Info"):
+            config.set("Hosting Info", "privkey", "")
+
+        else:
+            config["Hosting Info"] = {"privkey": ""}
+        writeconfig()
+
+    elif key == '5':
+        main()
 
     else:
-        host()
+        settingsmain()
         
 def alldone():
     cls()
@@ -220,15 +246,6 @@ def alldone():
     time.sleep(2)
     cls()
     main()
-
-def hostprompt():
-    cls()
-    n()
-    print("Are you planning on using the default location or a custom one?")
-    n()
-    print("[1.] Yes, I will use the defualt location.")
-    print("[2.] No, I will use a custom location.")
-    n()
 
     key = input()
 
@@ -264,27 +281,7 @@ def hostprompt():
     if key == '2':
         host()
 
-def customizationprompt():
-    cls()
-    n()
-    print("Would you like to Customize Nimbus?")
-    n()
-    print("[1.] Sure, I'll customize my client!")
-    print("[2.] No, I'd like to keep the default looks.")
-    n()
-
     key = input()
-
-    if key == '1':
-        print("Okay! Sending you to the customization menu now...")
-        time.sleep(1)
-        customization()
-    
-    if key == '2':
-        n()
-        print("Okay, no problem! you can always change your mind later.")
-        time.sleep(1)
-        alldone()
 
 def hostinglocation():
     cls()
@@ -367,36 +364,10 @@ def hostinglocation():
     else:
         hostinglocation()
 
-    customizationprompt()
+    alldone()
     
 def firststartup():
     hostinglocation()
-
-def settingsmain():
-    cls()
-    n()
-
-    print("Select Configuration:")
-
-    n()
-
-    print("[1.] Customization")
-    print("[2.] Bucket and Keys")
-    print("[3.] Back")
-
-    n()
-
-    key = input()
-    
-    if key == '1':
-        customization()
-
-    if key == '2':
-        hostprompt()
-    
-    if key == '3':
-        cls()
-        main()
 
 # Initialization
 config = configparser.ConfigParser()
