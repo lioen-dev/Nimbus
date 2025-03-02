@@ -10,6 +10,7 @@ import boto3
 from botocore.exceptions import NoCredentialsError
 import pyperclip
 from tqdm import tqdm
+import sys
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
@@ -116,7 +117,7 @@ def main():
             elif choice == 3:
                 settings()
             elif choice == 4:
-                exit()
+                sys.exit()
             else:
                 print_centered("\033[91mInvalid choice. Please select a valid option.\033[0m")
                 time.sleep(2)
