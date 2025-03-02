@@ -1,422 +1,537 @@
-import tkinter as tk
-from tkinter import filedialog
+import os
+import subprocess
+import time
+import re
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+import configparser
 import hashlib
 import boto3
-import os
-from os import system
+from botocore.exceptions import NoCredentialsError
+import pyperclip
 from tqdm import tqdm
-import time
-import configparser
 
-configfile = "config.ini"
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-CRED = '\033[91m'
-CGREEN = '\033[92m'
-CITALICS = '\033[3m'
-CEND = '\033[0m'
+config = configparser.ConfigParser()
+config.read("config.ini")
+if not config.has_section("OPTIONS"):
+    config.add_section("OPTIONS")
 
-# Functions
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+def n():
+    print("\n")
+
 def cls():
     os.system("cls")
 
-def n():
-    print("")
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-def readconfig():
-    config.read(configfile)
+def strip_ansi(text):
+    return re.sub(r"\033\[[0-9;]*m", "", text)  
 
-def writeconfig():
-    configfile = "config.ini"
-    with open(configfile, "w") as configfile:
-        config.write(configfile)
+def print_centered(text):
+    for line in text.splitlines():
+        visible_length = len(strip_ansi(line))  
+        padding = max(0, os.get_terminal_size().columns // 2 - visible_length // 2)
+        print(" " * padding + line)
 
-# Pages
-
-def upload():
-    readconfig()
-    bucket = config["Hosting Info"]["bucket"]
-    pubkey = config["Hosting Info"]["pubkey"]
-    privkey = config["Hosting Info"]["privkey"]
-    s3 = boto3.client('s3', aws_access_key_id=pubkey,
-                         aws_secret_access_key=privkey)
-    
-    cls()
-    n()
-    print("    Please select your file / zip folder.")
-    time.sleep(0.5)
-
-    code = hashlib.sha256(os.urandom(1024)).hexdigest()[:7]
-
-    # Open file dialog to select file
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        file_path = filedialog.askopenfilename()
-
-        if file_path == "":
-            print("    No file selected. Returning to main menu.")
-            time.sleep(1)
-            cls()
-            main()
-
-        # Upload file to S3 with the original filename and filetype. Use the unique code as the key
-        file_name = os.path.basename(file_path)
-
-        # Get the file size to track progress
-        file_size = os.path.getsize(file_path)
-
-        # Create a tqdm progress bar
-        with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"Uploading {file_name}") as pbar:
-            # Define a progress callback function to update the progress bar
-            def progress_callback(bytes_transferred):
-                pbar.update(bytes_transferred)
-
-            # Upload file to S3 with the progress callback
-            s3.upload_file(file_path, bucket, code, ExtraArgs={'Metadata': {'original_filename': file_name}}, Callback=progress_callback)
-        
-        cls()
-        n()
-        readconfig()
-        if config["Hosting Info"]["bucket"] == "fost":
-            print(CGREEN + CITALICS + f"    File uploaded to default bucket! Your code is {code}!" + CEND)
-        else:
-            print(CGREEN + CITALICS + f"    File uploaded to bucket {bucket}! Your code is {code}!" + CEND)
-
-
-
-        main()
-
-    except Exception as e:
-        cls()
-        print(CRED + f"    Error uploading file: {e}" + CEND)
-        main()
-
-def download():
-    readconfig()
-    bucket = config["Hosting Info"]["bucket"]
-    pubkey = config["Hosting Info"]["pubkey"]
-    privkey = config["Hosting Info"]["privkey"]
-    s3 = boto3.client('s3', aws_access_key_id=pubkey,
-                         aws_secret_access_key=privkey)
-    
-    n()
-    # Get the unique code from the user
-    code = input("    Enter the unique code: ")
-
-    if code == "":
-        print("    No code entered. Returning to main menu.")
-        time.sleep(1)
-        cls()
-        main()
-
-    try:
-        # Get the file's metadata to retrieve the original filename
-        response = s3.head_object(Bucket=bucket, Key=code)
-        file_name = response['Metadata']['original_filename']
-
-        # Get the file size for the progress bar
-        file_size = response['ContentLength']
-
-        # Create a tqdm progress bar
-        with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"Downloading {file_name}") as pbar:
-            # Define a progress callback function to update the progress bar
-            def progress_callback(bytes_transferred):
-                pbar.update(bytes_transferred)
-
-            # Download the file from S3 with the progress callback
-            s3.download_file(bucket, code, file_name, Callback=progress_callback)
-        
-        cls()
-        print(CGREEN + CITALICS + f"    File downloaded successfully! File saved as: {file_name}" + CEND)
-        main()
-
-    except Exception as e:
-        print(CRED + f"    Error downloading file: {e}" + CEND)
-        main()
-
-def main():
-    system(""); faded = ""
+def print_title():
+    nimbus = ""
     red = 40
-    for line in "    ────────────────────⋆⋅☆⋅⋆────────────────────────\n                                                     \n    ███╗   ██╗██╗███╗   ███╗██████╗ ██╗   ██╗███████╗\n    ████╗  ██║██║████╗ ████║██╔══██╗██║   ██║██╔════╝\n    ██╔██╗ ██║██║██╔████╔██║██████╔╝██║   ██║███████╗\n    ██║╚██╗██║██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║\n    ██║ ╚████║██║██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║\n    ╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝\n    ────────────────────⋆⋅☆⋅⋆────────────────────────\n".splitlines():
-        faded += (f"\033[38;2;{red};0;220m{line}\033[0m\n")
-        if not red == 255:
+
+    title = """
+──────────────────────⋆ ⋅ ☆ ⋅ ⋆──────────────────────
+
+███╗   ██╗██╗███╗   ███╗██████╗ ██╗   ██╗███████╗
+████╗  ██║██║████╗ ████║██╔══██╗██║   ██║██╔════╝
+██╔██╗ ██║██║██╔████╔██║██████╔╝██║   ██║███████╗
+██║╚██╗██║██║██║╚██╔╝██║██╔══██╗██║   ██║╚════██║
+██║ ╚████║██║██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║
+╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝
+
+──────────────────────⋆ ⋅ ☆ ⋅ ⋆──────────────────────
+    """
+
+    for line in title.splitlines():
+        nimbus += (f"\033[38;2;{red};0;220m{line}\033[0m\n")
+        if red < 255:
             red += 15
             if red > 255:
                 red = 255
-    print(faded)
+    
+    print_centered(nimbus)
 
-    print("    by lioen (barker.rowan@sugarsalem.com)")
-    n()
-    print("    [1.] Upload a File")
-    print("    [2.] Download a File")
-    print("    [3.] Settings")
-    print("    [4.] Exit")
-    n()
-
-    key = input("    ")
-
-    if key == '1':
-        upload()
-
-    elif key == '2':
-        download()
-
-    elif key == '3':
-        cls()
-        settingsmain()
-
-    elif key == '4':
-        n()
-        print("Thanks for using Nimbus! Exiting now...")
-        time.sleep(1)
-        cls()
-        exit()
-
-def changebucket():
+def init():
     cls()
-    n()
-    bucketname = input("Enter your bucket name here: ")
+    print_title()
+    
+    print_centered("\033[5mLogging in...\033[0m")
 
-    readconfig()
-    if config.has_section("Hosting Info"):
-        config.set("Hosting Info", "bucket", bucketname)
+    try:
+        subprocess.check_call(["ping", "-n", "1", "8.8.8.8"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        loggedin = True
+    except subprocess.CalledProcessError:
+        loggedin = False
+        print_centered("\033[91mFailed to log in, are you connected to Wi-Fi?\033[0m")
+        input()
 
-    else:
-        config["Hosting Info"] = {"bucket": bucketname}
-    writeconfig()
-    cls()
-    print(CGREEN + f"Saved bucket as {bucketname}!" + CEND)
+    if loggedin == True:
+        global user_uuid, username, ip
 
-    settingsmain()
+        ip = subprocess.check_output("ipconfig", shell=True).decode().split("IPv4 Address")[1].split(":")[1].strip().split("\r")[0]
 
-def changepubkey():
-    cls()
-    n()
-    publicapikey = input("Enter it here: ")
+        user_uuid = get_hwid()[:6]
 
-    readconfig()
-    if config.has_section("Hosting Info"):
-        config.set("Hosting Info", "pubkey", publicapikey)
+        username = os.getlogin()
+        identifier = f"{username} - {user_uuid}"
 
-    else:
-        config["Hosting Info"] = {"pubkey": publicapikey}
-    writeconfig()
-    cls()
-    print(CGREEN + f"Saved public key as {publicapikey}!" + CEND)
-
-    settingsmain()
-
-def changeprivkey():
-    cls()
-    n()
-    privateapikey = input("Enter it here: ")
-
-    readconfig()
-    if config.has_section("Hosting Info"):
-        config.set("Hosting Info", "privkey", privateapikey)
-
-    else:
-        config["Hosting Info"] = {"privkey": privateapikey}
-    writeconfig()
-    cls()
-    print(CGREEN + f"Saved private key as {privateapikey}!" + CEND)
-
-    settingsmain()
-
-def settingsmain():
-    n()
-    print("    Select what you'd like to change.")
-    n()
-    print("    [1.] Bucket Name")
-    print("    [2.] Public Key")
-    print("    [3.] Private Key")
-    print("    [4.] Reset to Defaults")
-    print("    [5.] Back")
-    n()
-
-    key = input("    ")
-
-    if key == '1':
-        changebucket()
-
-    elif key == '2':
-        changepubkey()
-
-    elif key == '3':
-        changeprivkey()
-
-    elif key == '4':
-        readconfig()
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "bucket", "")
-
-        else:
-            config["Hosting Info"] = {"bucket": ""}
-        writeconfig()
-        readconfig()
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "pubkey", "")
-
-        else:
-            config["Hosting Info"] = {"pubkey": ""}
-        writeconfig()
-        readconfig()
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "privkey", "")
-
-        else:
-            config["Hosting Info"] = {"privkey": ""}
-        writeconfig()
-        cls()
-        print(CGREEN + "Reset sucessfully!" + CEND)
-        settingsmain()
-
-    elif key == '5':
-        cls()
+        print_centered(f"\033[92mLogged in successfully as {identifier}!\033[0m")
+        time.sleep(2)
         main()
 
+def main():
+    while True:
+        cls()
+        print_title()
+
+        print_centered("\033[38;2;255;0;220mby lioen (barker.rowan@sugarsalem.com)\033[0m")
+        n()
+        n()
+        print_centered("[1.] Upload a File                           [2.] Download a File")
+        n()
+        print_centered("[3.] Settings                                           [4.] Exit")
+        n()
+        print_centered("─" * (os.get_terminal_size().columns - 3))
+        n()
+        choice = input("    > ")
+
+        if choice.isdigit():
+            choice = int(choice)
+            if choice == 1:
+                upload_file()
+            elif choice == 2:
+                download_file()
+            elif choice == 3:
+                settings()
+            elif choice == 4:
+                exit()
+            else:
+                print_centered("\033[91mInvalid choice. Please select a valid option.\033[0m")
+                time.sleep(2)
+        else:
+            print_centered("\033[91mInvalid input. Please enter a number.\033[0m")
+            time.sleep(2)
+
+def upload_file():
+    print_centered("\033[38;2;173;216;230mPlease select the File/Folder you would like to upload.\033[0m")
+    filepath = askopenfilename()  
+
+    if filepath:
+        print_centered(f"\033[5mUploading file: {filepath}\033[0m")
+        n()
+        code = hashlib.sha256(os.urandom(1024)).hexdigest()[:7]
+        bucket = config.get("OPTIONS", "bucket")
+        pubkey = config.get("OPTIONS", "pubkey")
+        privkey = config.get("OPTIONS", "privkey")
+
+        s3 = boto3.client('s3', aws_access_key_id=pubkey, aws_secret_access_key=privkey)
+
+        try:
+            file_name = os.path.basename(filepath)
+            file_size = os.path.getsize(filepath)
+        
+            with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"   Uploading {file_name}") as pbar:
+                def progress_callback(bytes_transferred):
+                    pbar.update(bytes_transferred)
+
+                s3.upload_file(filepath, bucket, code, Callback=progress_callback, ExtraArgs={
+                    'Metadata': {
+                        'filename': os.path.basename(filepath),
+                        'identifier': f"{username} - {user_uuid}"
+                    },
+                    'Tagging': f"IP={ip}&Motherboard={mb}&Disk={disk}"
+                })
+
+            n()
+            print_centered(f"\033[92mFile uploaded successfully with code: {code}. It has also been copied to your clipboard.\033[0m")
+            pyperclip.copy(code)
+        except FileNotFoundError:
+            print_centered("\033[91mThe file was not found.\033[0m")
+        except NoCredentialsError:
+            print_centered("\033[91mCredentials not available.\033[0m")
+        except Exception as e:
+            print_centered(f"\033[91mAn error occurred: {str(e)}\033[0m")
+
+        time.sleep(5)
     else:
-        settingsmain()
-        
-def alldone():
-    cls()
-    n()
-    print("All done with first time setup! Sending you to the main menu now.")
-    time.sleep(2)
-    cls()
-    main()
-
-    key = input()
-
-    if key == '1':
-        n()
-        print("Okay! Setting things up for you!")
-
-        readconfig()
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "bucket", "")
-
-        else:
-            config["Hosting Info"] = {"bucket": ""}
-        writeconfig()
-        readconfig()
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "pubkey", "")
-
-        else:
-            config["Hosting Info"] = {"pubkey": ""}
-        writeconfig()
-        readconfig()
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "privkey", "")
-
-        else:
-            config["Hosting Info"] = {"privkey": ""}
-        writeconfig()
-
-        cls()
-        main()
-    
-    if key == '2':
-        settingsmain()
-
-    key = input()
-
-def hostinglocation():
-    cls()
-    n()
-    print("Would you like to use the default file hosting location? (Recommended for beginners.)")
-    n()
-    print("[1.] Yes, I will use the defualt location.")
-    print("[2.] No, I will use a custom location.")
-    n()
-
-    key = input()
-
-    if key == '1':
-        n()
-        print("Wonderful! Setting things up...")
-        time.sleep(1)
-        readconfig()
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "bucket", "fost")
-
-        else:
-            config["Hosting Info"] = {"bucket": "fost"}
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "pubkey", "")
-
-        else:
-            config["Hosting Info"] = {"pubkey": ""}
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "privkey", "")
-
-        else:
-            config["Hosting Info"] = {"privkey": ""}
-        writeconfig()
-    
-    elif key == '2':
-        cls()
-        n()
-        print("Okay! First I'll need the name of the bucket.")
-        n()
-        bucketname = input("Enter it here: ")
-
-        readconfig()
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "bucket", bucketname)
-
-        else:
-            config["Hosting Info"] = {"bucket": bucketname}
-
-        n()
-        print("Thanks! Dont Worry if you mistyped, you can always change it later.")
-        n()
-        print("Next, I'll need your public API key. If the bucket is not owned by you, then this key should be from an IAM user dedicated to you with specific permissions.")
-        n()
-        publicapikey = input("Enter it here: ")
-
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "pubkey", publicapikey)
-
-        else:
-            config["Hosting Info"] = {"pubkey": publicapikey}
-
-        n()
-        print("Thanks! Dont Worry if you mistyped, you can always change it later.")
-        n()
-        print("Next, I'll need your private API key. If the bucket is not owned by you, then this key should be from an IAM user dedicated to you with specific permissions.")
-        n()
-        privateapikey = input("Enter it here: ")
-
-        if config.has_section("Hosting Info"):
-            config.set("Hosting Info", "privkey", privateapikey)
-
-        else:
-            config["Hosting Info"] = {"privkey": privateapikey}
-        writeconfig()
-        
-        n()
-        print("Thanks! Remember, keep a backup of those keys, if you lose them or change any of this data later, it will be a headache to get them back.")
+        print_centered("No file selected.")
         time.sleep(2)
 
+def download_file():
+    print_centered("\033[38;2;173;216;230mPlease enter the code of the file you would like to download.\033[0m")
+    code = input("    > ")
+
+    if code:
+        bucket = config.get("OPTIONS", "bucket")
+        pubkey = config.get("OPTIONS", "pubkey")
+        privkey = config.get("OPTIONS", "privkey")
+
+        s3 = boto3.client('s3', aws_access_key_id=pubkey, aws_secret_access_key=privkey)
+
+        try:
+            response = s3.head_object(Bucket=bucket, Key=code)
+            if 'Metadata' in response:
+                original_filename = response['Metadata']['filename']
+                identifier = response['Metadata']['identifier']
+                file_size = response['ContentLength']
+                print_centered(f"\033[38;2;173;216;230mFile found: {original_filename} ({file_size} bytes) uploaded by {identifier}.\033[0m")
+                n()
+                print_centered("\033[38;2;173;216;230mWould you like to download this file?\033[0m")
+                n()
+                print_centered("[1.] Yes                                            [2.] No")
+                n()
+                choice = input("    > ")
+                if choice.isdigit():
+                    choice = int(choice)
+                    if choice == 1:
+                        pass
+                    elif choice == 2:
+                        return
+                    else:
+                        print_centered("\033[91mInvalid choice. Please select a valid option.\033[0m")
+                        time.sleep(2)
+                        return
+                else:
+                    print_centered("\033[91mInvalid input. Please enter a number.\033[0m")
+                    time.sleep(2)
+                    return
+            else:
+                print_centered("\033[91mNo file found with the provided code.\033[0m")
+                time.sleep(2)
+                return
+        except Exception as e:
+            print_centered(f"\033[91mNimbus couldn't find a file matching that code.\033[0m")
+            time.sleep(2)
+            return
+
+        n()
+
+        try:
+            with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"   Downloading {original_filename}") as pbar:
+                def progress_callback(bytes_transferred):
+                    pbar.update(bytes_transferred)
+
+                s3.download_file(bucket, code, original_filename, Callback=progress_callback)
+            
+            n()
+            print_centered(f"\033[92mFile downloaded successfully as {original_filename}.\033[0m")
+        except FileNotFoundError:
+            print_centered("\033[91mThe file was not found.\033[0m")
+        except NoCredentialsError:
+            print_centered("\033[91mCredentials not available.\033[0m")
+        except Exception as e:
+            print_centered(f"\033[91mAn error occurred: {str(e)}\033[0m")
+
+        time.sleep(5)
     else:
-        hostinglocation()
+        print_centered("\033[91mInvalid input. Please enter a valid code.\033[0m")
+        time.sleep(2)
 
-    alldone()
+def settings():
+    while True:
+        cls()
+        print_title()
+        print_centered("Settings")
+        n()
+        print_centered("[1.] Change bucket                           [2.] Change Private Key")
+        n()
+        print_centered("[3.] Change Public Key                         [4.] Reset to Default")
+        n()
+        print_centered("[5.] Exit")
+        n()
+        print_centered("─" * (os.get_terminal_size().columns - 3))
+        n()
+        choice = input("    > ")
+
+        if choice.isdigit():
+            choice = int(choice)
+            if choice == 1:
+                change_bucket()
+            elif choice == 2:
+                change_privkey()
+            elif choice == 3:
+                change_pubkey()
+            elif choice == 4:
+                reset_to_default()
+            elif choice == 5:
+                return
+            else:
+                print_centered("\033[91mInvalid choice. Please select a valid option.\033[0m")
+                time.sleep(2)
+        else:
+            print_centered("\033[91mInvalid input. Please enter a number.\033[0m")
+            time.sleep(2)
+
+def change_bucket():
+    if not config.has_section("OPTIONS"):
+        config.add_section("OPTIONS")
+    n()
+    print_centered("What bucket would you like to use? ")
+    n()
+    bucket = input("Type Here:").strip()
+    if bucket:
+        config.set("OPTIONS", "bucket", bucket)
+        save_config()
+    else:
+        print_centered("\033[91mInvalid input. Please enter a valid bucket name.\033[0m")
+        time.sleep(2)
+
+def change_privkey():
+    if not config.has_section("OPTIONS"):
+        config.add_section("OPTIONS")
+    n()
+    print_centered("Enter your Private Key below ")
+    n()
+    privkey = input("Type Here:").strip()
+    if privkey:
+        config.set("OPTIONS", "privkey", privkey)
+        save_config()
+    else:
+        print_centered("\033[91mInvalid input. Please enter a valid private key.\033[0m")
+        time.sleep(2)
+
+def change_pubkey():
+    if not config.has_section("OPTIONS"):
+        config.add_section("OPTIONS")
+    n()
+    print_centered("Enter your Public Key below ")
+    n()
+    pubkey = input("Type Here:").strip()
+    if pubkey:
+        config.set("OPTIONS", "pubkey", pubkey)
+        save_config()
+    else:
+        print_centered("\033[91mInvalid input. Please enter a valid public key.\033[0m")
+        time.sleep(2)
+
+def reset_to_default():
+    if not config.has_section("OPTIONS"):
+        config.add_section("OPTIONS")
+    config["OPTIONS"] = {
+        "pubkey": "",
+        "privkey": "",
+        "bucket": ""
+    }
+    save_config()
+    print_centered("Configuration reset to default values.")
+    time.sleep(2)
+
+def save_config():
+    with open("config.ini", "w") as configfile:
+        config.write(configfile)
+    print_centered("Settings updated successfully.")
+    time.sleep(2)
+
+def get_hwid():
+    try:
+        global mb, disk
+        mb = subprocess.check_output("wmic csproduct get uuid", shell=True).decode().split("\n")[1].strip()
+        disk = subprocess.check_output("wmic diskdrive get serialnumber", shell=True).decode().split("\n")[1].strip()
+        output = f"{mb}{disk}"
+        return output
+    except Exception as e:
+        return "UNKNOWN"
     
+def startup():
+    config = configparser.ConfigParser()
+    config_file = "config.ini"
+
+    if os.path.exists(config_file):
+        config.read(config_file)
+        if (config.has_section("OPTIONS") and 
+            config.has_option("OPTIONS", "pubkey") and config.get("OPTIONS", "pubkey") and
+            config.has_option("OPTIONS", "privkey") and config.get("OPTIONS", "privkey") and
+            config.has_option("OPTIONS", "bucket") and config.get("OPTIONS", "bucket")):
+            init()
+        else:
+            global haspubkey, hasprivkey, hasbucket
+
+            haspubkey = config.has_option("OPTIONS", "pubkey")
+            hasprivkey = config.has_option("OPTIONS", "privkey")
+            hasbucket = config.has_option("OPTIONS", "bucket")
+
+            corruptedconfig()
+    else:
+        config["OPTIONS"] = {
+            "pubkey": "",
+            "privkey": "",
+            "bucket": ""
+        }
+        with open(config_file, "w") as configfile:
+            config.write(configfile)
+        firststartup()
+
 def firststartup():
-    hostinglocation()
-
-# Initialization
-config = configparser.ConfigParser()
-configfile = "config.ini"
-
-if os.path.exists(configfile):
+    print_title()
+    n()
+    print_centered("Welcome to Nimbus! Let's get you set up.")
+    print_centered("Press any key to continue...")
+    input()
     cls()
+
+    print_title()
+    n()
+
+    print_centered("Would you like to use the default bucket, or set a custom one?")
+    n()
+
+    print_centered("[1.] Default bucket (Recommended)    [2.] Custom bucket")
+    n()
+
+    while True:
+        choice = input("    > ")
+        if choice.isdigit():
+            choice = int(choice)
+            if choice == 1:
+                print_centered("Perfect! Setting things up...")
+                time.sleep(1)
+                config["OPTIONS"] = {
+                    "pubkey": "",
+                    "privkey": "",
+                    "bucket": ""
+                }
+                with open("config.ini", "w") as configfile:
+                    config.write(configfile)
+                print_centered("Configuration set to default values.")
+                time.sleep(2)
+                init()
+                break
+            elif choice == 2:
+                print_centered("Alright! Taking you to the configuration menu...")
+                time.sleep(1)
+                customdata()
+                break
+            else:
+                print_centered("\033[91mInvalid choice. Please select a valid option.\033[0m")
+                time.sleep(2)
+        else:
+            print_centered("\033[91mInvalid input. Please enter a number.\033[0m")
+            time.sleep(2)
+
+def customdata():
+    cls()
+    print_title()
+    if not config.has_section("OPTIONS"):
+        config.add_section("OPTIONS")
+    print_title()
+    n()
+    print_centered("What bucket would you like to use? ")
+    n()
+    bucket = input("Type Here:").strip()
+    if bucket:
+        config.set("OPTIONS", "bucket", bucket)
+    else:
+        print_centered("\033[91mInvalid input. Please enter a valid bucket name.\033[0m")
+        time.sleep(2)
+        customdata()
+        return
+
+    n()
+    print_centered("Please enter your Public Key.")
+    n()
+    pubkey = input().strip()
+    if pubkey:
+        config.set("OPTIONS", "pubkey", pubkey)
+    else:
+        print_centered("\033[91mInvalid input. Please enter a valid public key.\033[0m")
+        time.sleep(2)
+        customdata()
+        return
+
+    n()
+    print_centered("Please enter your Private Key.")
+    n()
+    privkey = input().strip()
+    if privkey:
+        config.set("OPTIONS", "privkey", privkey)
+    else:
+        print_centered("\033[91mInvalid input. Please enter a valid private key.\033[0m")
+        time.sleep(2)
+        customdata()
+        return
+
+    with open("config.ini", "w") as configfile:
+        config.write(configfile)
+
+    n()
+    print_centered("Configuration finished! Press any key to go to the main menu...")
+    input()
+    init()
+
+def corruptedconfig():
+    cls()
+    print_title()
+    n()
+    print_centered("It looks like something's off with your settings. Let's fix that!")
+    n()
+    print_centered("Press any key to continue...")
+    input()
+    cls()
+    print_title()
+    config.read("config.ini")
+
+    if not config.has_section("OPTIONS"):
+        config.add_section("OPTIONS")
+
+    if not config.has_option("OPTIONS", "bucket") or not config.get("OPTIONS", "bucket"):
+        n()
+        print_centered("What bucket would you like to use? ")
+        n()
+        bucket = input("Type Here:").strip()
+        if bucket:
+            config.set("OPTIONS", "bucket", bucket)
+        else:
+            print_centered("\033[91mInvalid input. Please enter a valid bucket name.\033[0m")
+            time.sleep(2)
+            corruptedconfig()
+            return
+
+    if not config.has_option("OPTIONS", "pubkey") or not config.get("OPTIONS", "pubkey"):
+        n()
+        print_centered("Please enter your Public Key.")
+        n()
+        pubkey = input().strip()
+        if pubkey:
+            config.set("OPTIONS", "pubkey", pubkey)
+        else:
+            print_centered("\033[91mInvalid input. Please enter a valid public key.\033[0m")
+            time.sleep(2)
+            corruptedconfig()
+            return
+    
+    if not config.has_option("OPTIONS", "privkey") or not config.get("OPTIONS", "privkey"):
+        n()
+        print_centered("Please enter your Private Key.")
+        n()
+        privkey = input().strip()
+        if privkey:
+            config.set("OPTIONS", "privkey", privkey)
+        else:
+            print_centered("\033[91mInvalid input. Please enter a valid private key.\033[0m")
+            time.sleep(2)
+            corruptedconfig()
+            return
+
+    with open("config.ini", "w") as configfile:
+        config.write(configfile)
+
+    n()
+    print_centered("Configuration updated successfully.")
+    time.sleep(2)
     main()
 
-else:
-    open(configfile, "w").close()
-    cls()
-    firststartup()
+cls()
+
+startup()
