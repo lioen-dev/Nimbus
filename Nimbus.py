@@ -100,7 +100,7 @@ def main():
         print_centered("\033[38;2;255;0;220mby lioen (barker.rowan@sugarsalem.com)\033[0m")
         n()
         n()
-        print_centered("[1.] Upload a File                           [2.] Download a File")
+        print_centered("[1.] Upload File(s)                            [2.] Download a File")
         n()
         print_centered("[3.] Settings                                           [4.] Exit")
         n()
@@ -126,55 +126,70 @@ def main():
             time.sleep(2)
 
 def upload_file():
-    print_centered("\033[38;2;173;216;230mPlease select the File/Folder you would like to upload.\033[0m")
-    filepath = askopenfilename()  
+    print_centered("\033[38;2;173;216;230mPlease select the Files you would like to upload.\033[0m")
+    filepaths = askopenfilename(multiple=True)
 
-    if filepath:
-        print_centered(f"\033[5mUploading file: {filepath}\033[0m")
-        n()
-        code = hashlib.sha256(os.urandom(1024)).hexdigest()[:7]
-        bucket = config.get("OPTIONS", "bucket")
-        pubkey = config.get("OPTIONS", "pubkey")
-        privkey = config.get("OPTIONS", "privkey")
-
-        s3 = boto3.client('s3', aws_access_key_id=pubkey, aws_secret_access_key=privkey)
-
-        try:
-            file_name = os.path.basename(filepath)
-            file_size = os.path.getsize(filepath)
-        
-            with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"   Uploading {file_name}") as pbar:
-                def progress_callback(bytes_transferred):
-                    pbar.update(bytes_transferred)
-
-                s3.upload_file(filepath, bucket, code, Callback=progress_callback, ExtraArgs={
-                    'Metadata': {
-                        'filename': os.path.basename(filepath),
-                        'identifier': f"{username} - {user_uuid}"
-                    },
-                    'Tagging': f"IP={ip}&Motherboard={mb}&Disk={disk}"
-                })
-
+    if filepaths:
+        codes = []
+        for filepath in filepaths:
+            print_centered(f"\033[5mUploading file: {filepath}\033[0m")
             n()
-            print_centered(f"\033[92mFile uploaded successfully with code: {code}. It has also been copied to your clipboard.\033[0m")
-            pyperclip.copy(code)
-        except FileNotFoundError:
-            print_centered("\033[91mThe file was not found.\033[0m")
-        except NoCredentialsError:
-            print_centered("\033[91mCredentials not available.\033[0m")
-        except Exception as e:
-            print_centered(f"\033[91mAn error occurred: {str(e)}\033[0m")
+            code = hashlib.sha256(os.urandom(1024)).hexdigest()[:7]
+            bucket = config.get("OPTIONS", "bucket")
+            pubkey = config.get("OPTIONS", "pubkey")
+            privkey = config.get("OPTIONS", "privkey")
 
-        time.sleep(5)
+            s3 = boto3.client('s3', aws_access_key_id=pubkey, aws_secret_access_key=privkey)
+
+            try:
+                file_name = os.path.basename(filepath)
+                file_size = os.path.getsize(filepath)
+            
+                with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"   Uploading {file_name}") as pbar:
+                    def progress_callback(bytes_transferred):
+                        pbar.update(bytes_transferred)
+
+                    s3.upload_file(filepath, bucket, code, Callback=progress_callback, ExtraArgs={
+                        'Metadata': {
+                            'filename': os.path.basename(filepath),
+                            'identifier': f"{username} - {user_uuid}"
+                        },
+                        'Tagging': f"IP={ip}&Motherboard={mb}&Disk={disk}"
+                    })
+
+                codes.append(f"{file_name} - {code}")
+                n()
+                print_centered(f"\033[92mFile uploaded successfully with code: {code}.\033[0m")
+            except FileNotFoundError:
+                print_centered("\033[91mThe file was not found.\033[0m")
+            except NoCredentialsError:
+                print_centered("\033[91mCredentials not available.\033[0m")
+            except Exception as e:
+                print_centered(f"\033[91mAn error occurred: {str(e)}\033[0m")
+
+
+        if len(codes) > 1:
+            with open("uploaded_files.txt", "w") as f:
+                for entry in codes:
+                    f.write(entry + "\n")
+            print_centered("\033[92mAll files uploaded successfully. Codes have been saved to uploaded_files.txt.\033[0m")
+        elif len(codes) == 1:
+            pyperclip.copy(codes[0])
+            print_centered(f"\033[92mFile uploaded successfully. Code has been copied to clipboard: {codes[0]}.\033[0m")
+        else:
+            print_centered("\033[91mNo files were uploaded.\033[0m")
     else:
-        print_centered("No file selected.")
+        print_centered("No files selected.")
         time.sleep(2)
+
+    time.sleep(5)
 
 def download_file():
     print_centered("\033[38;2;173;216;230mPlease enter the code of the file you would like to download.\033[0m")
     code = input("    > ")
 
     if code:
+        #get name, size, and user_uuid from metadata
         bucket = config.get("OPTIONS", "bucket")
         pubkey = config.get("OPTIONS", "pubkey")
         privkey = config.get("OPTIONS", "privkey")
@@ -442,7 +457,7 @@ def customdata():
     n()
     print_centered("Please enter your Public Key.")
     n()
-    pubkey = input().strip()
+    pubkey = input("Type Here:").strip()
     if pubkey:
         config.set("OPTIONS", "pubkey", pubkey)
     else:
@@ -454,7 +469,7 @@ def customdata():
     n()
     print_centered("Please enter your Private Key.")
     n()
-    privkey = input().strip()
+    privkey = input("Type Here:").strip()
     if privkey:
         config.set("OPTIONS", "privkey", privkey)
     else:
@@ -533,6 +548,57 @@ def corruptedconfig():
     time.sleep(2)
     main()
 
+def downloadfromarg(line, folder_name):
+    print_centered(f"\033[38;2;173;216;230mDownloading file with code: {line}\033[0m")
+    bucket = config.get("OPTIONS", "bucket")
+    pubkey = config.get("OPTIONS", "pubkey")
+    privkey = config.get("OPTIONS", "privkey")
+
+    s3 = boto3.client('s3', aws_access_key_id=pubkey, aws_secret_access_key=privkey)
+
+    try:
+        response = s3.head_object(Bucket=bucket, Key=line)
+        original_filename = response['Metadata']['filename']
+        download_path = os.path.join(folder_name, original_filename)
+        s3.download_file(bucket, line, download_path)
+        print_centered(f"\033[92mFile downloaded successfully as {download_path}.\033[0m")
+    except FileNotFoundError:
+        print_centered("\033[91mThe file was not found.\033[0m")
+    except Exception as e:
+        print_centered(f"\033[91mAn error occurred: {str(e)}\033[0m")
+
 cls()
 
-startup()
+if len(os.sys.argv) > 1:
+    try:
+        file_path = os.sys.argv[1]
+        folder_name = os.path.splitext(os.path.basename(file_path))[0]
+        
+        with open(file_path, "r") as f:
+            print_title()
+            print_centered("You are about to download a bundle. Are you sure you want to continue?")
+            n()
+            print_centered("[1.] Yes    [2.] No")
+            n()
+            choice = int(input("    > "))
+            if choice == 1:
+                os.makedirs(folder_name, exist_ok=True)
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        downloadfromarg(line, folder_name)
+                n()
+                print_centered("Finished! Press any key to exit...")
+                input()
+            else:
+                exit()
+    except FileNotFoundError:
+        print_title()
+        print_centered(f"\033[91m[ERROR]\033[0m - File {os.sys.argv[1]} not found.")
+
+    except Exception as e:
+        print_title()
+        print_centered(f"\033[91m[ERROR]\033[0m - An error occurred: {str(e)}")
+
+else:
+    startup()
