@@ -68,29 +68,9 @@ def init():
     cls()
     print_title()
     
-    print_centered("\033[5mLogging in...\033[0m")
-
-    try:
-        subprocess.check_call(["ping", "-n", "1", "8.8.8.8"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        loggedin = True
-    except subprocess.CalledProcessError:
-        loggedin = False
-        print_centered("\033[91mFailed to log in, are you connected to Wi-Fi?\033[0m")
-        input()
-
-    if loggedin == True:
-        global user_uuid, username, ip
-
-        ip = subprocess.check_output("ipconfig", shell=True).decode().split("IPv4 Address")[1].split(":")[1].strip().split("\r")[0]
-
-        user_uuid = get_hwid()[:6]
-
-        username = os.getlogin()
-        identifier = f"{username} - {user_uuid}"
-
-        print_centered(f"\033[92mLogged in successfully as {identifier}!\033[0m")
-        time.sleep(2)
-        main()
+    print_centered("\033[5mInitializing...\033[0m")
+    time.sleep(2)
+    main()
 
 def main():
     while True:
@@ -152,9 +132,7 @@ def upload_file():
                     s3.upload_file(filepath, bucket, code, Callback=progress_callback, ExtraArgs={
                         'Metadata': {
                             'filename': os.path.basename(filepath),
-                            'identifier': f"{username} - {user_uuid}"
                         },
-                        'Tagging': f"IP={ip}&Motherboard={mb}&Disk={disk}"
                     })
 
                 codes.append(f"{file_name} - {code}")
@@ -200,9 +178,8 @@ def download_file():
             response = s3.head_object(Bucket=bucket, Key=code)
             if 'Metadata' in response:
                 original_filename = response['Metadata']['filename']
-                identifier = response['Metadata']['identifier']
                 file_size = response['ContentLength']
-                print_centered(f"\033[38;2;173;216;230mFile found: {original_filename} ({file_size} bytes) uploaded by {identifier}.\033[0m")
+                print_centered(f"\033[38;2;173;216;230mFile found: {original_filename} ({file_size} bytes).\033[0m")
                 n()
                 print_centered("\033[38;2;173;216;230mWould you like to download this file?\033[0m")
                 n()
