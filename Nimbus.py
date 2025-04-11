@@ -132,6 +132,7 @@ def upload_file():
                     s3.upload_file(filepath, bucket, code, Callback=progress_callback, ExtraArgs={
                         'Metadata': {
                             'filename': os.path.basename(filepath),
+                            'uploader': pubkey
                         },
                     })
 
@@ -178,8 +179,9 @@ def download_file():
             response = s3.head_object(Bucket=bucket, Key=code)
             if 'Metadata' in response:
                 original_filename = response['Metadata']['filename']
+                uploaderpubkey = response['Metadata']['uploader']
                 file_size = response['ContentLength']
-                print_centered(f"\033[38;2;173;216;230mFile found: {original_filename} ({file_size} bytes).\033[0m")
+                print_centered(f"\033[38;2;173;216;230mFile found: {original_filename} ({file_size} bytes) - Uploaded by {uploaderpubkey}.\033[0m")
                 n()
                 print_centered("\033[38;2;173;216;230mWould you like to download this file?\033[0m")
                 n()
